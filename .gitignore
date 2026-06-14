@@ -1,0 +1,11 @@
+node_modules/
+.env
+*.env
+secrets.env
+*.log
+backend/logs/
+backend/data/
+backend/ai-workspace/*
+!backend/ai-workspace/.gitkeep
+public/
+.DS_Store
