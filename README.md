@@ -1,6 +1,6 @@
 # Todoist Triage
 
-A Tinder-style swipe app for triaging your [Todoist](https://todoist.com). If you live out of "due: today" and watch it pile up, Triage gives you two fast review decks to clear the backlog one card at a time — with keyboard, mouse, or touch.
+A swipe app for triaging your [Todoist](https://todoist.com). If you live out of "due: today" and watch it pile up, Triage gives you two fast review decks to clear the backlog one card at a time — swipe each card with keyboard, mouse, or touch.
 
 - **Weekly Project Review** — swipe through every active project: **Keep**, move to **Backlog**, move to **Someday**, or **Archive**.
 - **Do: Today Review** — swipe through every task due today: **Keep**, **Backlog**, **Someday**, or **Delete**.
