@@ -64,7 +64,7 @@ export default function SwipeDeck({ items, renderCard, actions, emptyTitle, empt
     }
   }
 
-  async function handleSwipe(direction) {
+  async function handleSwipe(direction, extra) {
     const item = remaining[0];
     if (!item) return;
     const action = actions[direction];
@@ -72,7 +72,7 @@ export default function SwipeDeck({ items, renderCard, actions, emptyTitle, empt
     setHistory(h => [...h, { item, direction }]);
     if (!action) return;
     try {
-      await action.run(item);
+      await action.run(item, extra);
     } catch (err) {
       setToast(`Couldn't ${action.label.toLowerCase()} — ${err.message}`);
     }
@@ -109,7 +109,15 @@ export default function SwipeDeck({ items, renderCard, actions, emptyTitle, empt
       <div className="swipe-card-stack">
         {visible.map((item, i) => (
           <SwipeCard key={item.id} active={i === 0} index={i} onSwipe={handleSwipe}>
-            {renderCard(item)}
+            {renderCard(
+              item,
+              i === 0
+                ? {
+                    onComplete: () => handleSwipe('complete'),
+                    onReschedule: days => handleSwipe('reschedule', { days }),
+                  }
+                : null
+            )}
           </SwipeCard>
         ))}
       </div>

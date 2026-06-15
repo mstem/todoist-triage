@@ -350,6 +350,108 @@ button {
   line-height: 1.3;
 }
 
+/* ---------- title link chips ---------- */
+
+.task-card__links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.task-card__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  font-size: 0.82rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.task-card__link svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.task-card__link-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-card__link:hover .task-card__link-text {
+  text-decoration: underline;
+}
+
+/* Link with an unsafe scheme — shown for context but not clickable. */
+.task-card__link--unsafe {
+  color: var(--ink-muted);
+  cursor: default;
+}
+
+.task-card__link--unsafe:hover .task-card__link-text {
+  text-decoration: none;
+}
+
+.task-card__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- complete checkbox ---------- */
+
+.task-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.task-card__heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-check {
+  flex-shrink: 0;
+  margin-top: 2px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.12s ease-out, background 0.12s ease-out, color 0.12s ease-out,
+    transform 0.12s ease-out;
+}
+
+.task-check svg {
+  width: 15px;
+  height: 15px;
+}
+
+.task-check:hover {
+  border-color: var(--keep);
+  color: var(--keep);
+  background: color-mix(in srgb, var(--keep) 12%, var(--surface));
+}
+
+.task-check:active {
+  transform: scale(0.9);
+}
+
+.task-check:focus-visible {
+  outline: 2px solid var(--keep);
+  outline-offset: 2px;
+}
+
 .swipe-card__body {
   margin-top: 16px;
   flex: 1;
@@ -426,6 +528,24 @@ button {
   min-height: 2.4em;
 }
 
+.task-edit__title--main {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  resize: none;
+  /* Auto-grows up to ~3 lines (resizeTitle); longer titles scroll internally
+     so they can't push the rest of the card out of the clipped card area. */
+  max-height: 5.6rem;
+  overflow-y: auto;
+}
+
+.task-edit__desc--main {
+  font-size: 0.95rem;
+  min-height: 4em;
+}
+
 .task-edit__title:hover,
 .task-edit__desc:hover {
   border-color: var(--border);
@@ -456,6 +576,13 @@ button {
   color: var(--danger);
 }
 
+.task-card__edit-status {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .swipe-card__due {
   display: inline-flex;
   align-items: center;
@@ -484,6 +611,48 @@ button {
 .swipe-card__footer .swipe-card__due {
   margin-top: 0;
   margin-right: auto;
+}
+
+/* ---------- reschedule buttons ---------- */
+
+.reschedule-group {
+  display: inline-flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.reschedule-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out, border-color 0.12s ease-out,
+    color 0.12s ease-out;
+}
+
+.reschedule-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+.reschedule-btn:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.reschedule-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ---------- AI button ---------- */

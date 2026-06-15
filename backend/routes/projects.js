@@ -47,8 +47,13 @@ router.get('/review-queue', async (req, res) => {
 
     const reviewable = projects
       .filter(p => !excluded.has(p.id) && !p.is_archived && !recentlyKept.has(p.id))
-      // Most recently created first.
-      .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+      // Top-level (no-parent) projects first, then most recently created first within each group.
+      .sort((a, b) => {
+        const aTop = a.parent_id ? 1 : 0;
+        const bTop = b.parent_id ? 1 : 0;
+        if (aTop !== bTop) return aTop - bTop;
+        return (b.created_at ?? '').localeCompare(a.created_at ?? '');
+      });
 
     const queue = await mapWithConcurrency(reviewable, TASK_FETCH_CONCURRENCY, async project => {
       const tasks = await getTasksForProject(project.id);
@@ -142,8 +147,17 @@ router.post('/:id/someday', async (req, res) => {
   }
 });
 
+// Archiving a project in Todoist cascades to its sub-projects, so promote any
+// direct children up to this project's own parent (or top-level) first —
+// that way the archive only ever affects the single project being archived.
 router.post('/:id/archive', async (req, res) => {
   try {
+    const projects = await getProjects();
+    const project = projects.find(p => p.id === req.params.id);
+    const children = projects.filter(p => p.parent_id === req.params.id);
+    for (const child of children) {
+      await moveProjectToParent(child.id, project?.parent_id ?? null);
+    }
     await archiveProject(req.params.id);
     res.json({ ok: true });
   } catch (err) {
@@ -151,20 +165,16 @@ router.post('/:id/archive', async (req, res) => {
   }
 });
 
-// Undo helpers for the Back button.
-// Restore a project to a given parent (null = back to top level).
-router.post('/:id/move', async (req, res) => {
-  try {
-    await moveProjectToParent(req.params.id, req.body?.parentId ?? null);
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
+// Undo helper for the Back button. Archiving clears parent_id, so optionally
+// pass the project's pre-archive parentId (captured in the review queue) to
+// restore it to its original spot — null means it was top-level.
 router.post('/:id/unarchive', async (req, res) => {
   try {
     await unarchiveProject(req.params.id);
+    const { parentId } = req.body;
+    if (parentId !== undefined) {
+      await moveProjectToParent(req.params.id, parentId);
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

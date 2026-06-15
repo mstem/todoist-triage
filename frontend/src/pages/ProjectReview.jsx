@@ -29,7 +29,7 @@ const ACTIONS = {
     label: 'Archive',
     color: 'var(--danger)',
     run: item => projectAction(item.id, 'archive'),
-    undo: item => projectAction(item.id, 'unarchive'),
+    undo: item => projectAction(item.id, 'unarchive', { parentId: item.parentId ?? null }),
   },
 };
 

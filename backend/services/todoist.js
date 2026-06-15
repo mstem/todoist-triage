@@ -110,6 +110,10 @@ export async function moveProjectToParent(id, parentId) {
   return syncCommand('project_move', { id, parent_id: parentId });
 }
 
+export async function moveTaskToProject(id, projectId) {
+  return syncCommand('item_move', { id, project_id: projectId });
+}
+
 export async function applyLabelAndClearDue(task, labelName) {
   const labels = Array.from(new Set([...(task.labels || []), labelName]));
   return syncCommand('item_update', { id: task.id, labels, due: null });
@@ -120,6 +124,32 @@ export async function updateTask(id, { content, description }) {
   if (content !== undefined) args.content = content;
   if (description !== undefined) args.description = description;
   return syncCommand('item_update', args);
+}
+
+function formatLocalDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// Move a task's due date `days` from today, preserving recurrence — same
+// approach as rollforward.py's item_update (string/is_recurring/lang/timezone
+// carried over, only `date` changes).
+export async function rescheduleTask(id, days, currentDue) {
+  const target = new Date();
+  target.setDate(target.getDate() + days);
+  const date = formatLocalDate(target);
+  const due = currentDue || {};
+  const newDue = {
+    date,
+    string: due.string || date,
+    is_recurring: due.is_recurring || false,
+    lang: due.lang || 'en',
+  };
+  if (due.timezone) newDue.timezone = due.timezone;
+  await syncCommand('item_update', { id, due: newDue });
+  return { date };
 }
 
 export async function deleteTask(id) {

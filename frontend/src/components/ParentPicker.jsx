@@ -6,15 +6,24 @@ const stopDrag = e => e.stopPropagation();
 
 const MAX_RESULTS = 50;
 
-export default function ParentPicker({ allProjects, currentId, onSelect }) {
+export default function ParentPicker({
+  allProjects,
+  currentId,
+  onSelect,
+  label = 'Move under another project…',
+  excludeDescendants = true,
+}) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const blurTimer = useRef(null);
 
-  // Exclude the project itself and all its descendants — Todoist rejects cycles.
+  // Exclude the current project. When re-parenting a project we also exclude its
+  // descendants (Todoist rejects cycles); a task has no descendants, so moving it
+  // into a sub-project of its current project is allowed.
   const excluded = useMemo(() => {
     const set = new Set([currentId]);
+    if (!excludeDescendants) return set;
     let frontier = new Set([currentId]);
     while (frontier.size) {
       const kids = allProjects.filter(p => frontier.has(p.parentId)).map(p => p.id);
@@ -23,15 +32,13 @@ export default function ParentPicker({ allProjects, currentId, onSelect }) {
       frontier = new Set(fresh);
     }
     return set;
-  }, [allProjects, currentId]);
+  }, [allProjects, currentId, excludeDescendants]);
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     return allProjects
       .filter(p => !excluded.has(p.id))
-      .filter(
-        p => !q || p.name.toLowerCase().includes(q) || (p.path && p.path.toLowerCase().includes(q))
-      )
+      .filter(p => !q || p.name.toLowerCase().includes(q))
       .slice(0, MAX_RESULTS);
   }, [allProjects, excluded, query]);
 
@@ -63,8 +70,8 @@ export default function ParentPicker({ allProjects, currentId, onSelect }) {
         className="parent-picker__input"
         type="text"
         value={query}
-        placeholder="Move under another project…"
-        aria-label="Move under another project"
+        placeholder={label}
+        aria-label={label}
         onChange={e => {
           setQuery(e.target.value);
           setOpen(true);

@@ -17,8 +17,11 @@ export const getTaskQueue = () => request('/tasks/review-queue');
 
 export const getProjectList = () => request('/projects/list');
 
-export const projectAction = (id, action) =>
-  request(`/projects/${id}/${action}`, { method: 'POST' });
+export const projectAction = (id, action, body) =>
+  request(`/projects/${id}/${action}`, {
+    method: 'POST',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
 
 export const moveProject = (id, parentId) =>
   request(`/projects/${id}/move`, { method: 'POST', body: JSON.stringify({ parentId }) });
@@ -31,6 +34,12 @@ export const taskAction = (id, action, body) =>
 
 export const updateTask = (id, body) =>
   request(`/tasks/${id}/update`, { method: 'POST', body: JSON.stringify(body) });
+
+export const moveTask = (id, projectId) =>
+  request(`/tasks/${id}/move`, { method: 'POST', body: JSON.stringify({ projectId }) });
+
+export const rescheduleTask = (id, days, due) =>
+  request(`/tasks/${id}/reschedule`, { method: 'POST', body: JSON.stringify({ days, due }) });
 
 export const aiProject = payload =>
   request('/ai/project', { method: 'POST', body: JSON.stringify(payload) });

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getTaskQueue, taskAction } from '../api.js';
+import { getTaskQueue, getProjectList, taskAction, rescheduleTask } from '../api.js';
 import SwipeDeck from '../components/SwipeDeck.jsx';
 import TaskCard from '../components/TaskCard.jsx';
 
@@ -25,15 +25,31 @@ const ACTIONS = {
     color: 'var(--danger)',
     run: item => taskAction(item.id, 'delete'),
   },
+  // Not a swipe direction (absent from BUTTON_ORDER) — triggered by the card's
+  // checkbox. Closes the task in Todoist; Back reopens it.
+  complete: {
+    label: 'Complete',
+    run: item => taskAction(item.id, 'complete'),
+    undo: item => taskAction(item.id, 'reopen'),
+  },
+  // Not a swipe direction — triggered by the card's +1/+2/+3 buttons. Moves
+  // the due date `days` out; undo restores today's date (days: 0).
+  reschedule: {
+    label: 'Reschedule',
+    run: (item, extra) => rescheduleTask(item.id, extra.days, item.due),
+    undo: item => rescheduleTask(item.id, 0, item.due),
+  },
 };
 
 export default function TaskReview() {
-  const [status, setStatus] = useState({ loading: true, items: null, error: null });
+  const [status, setStatus] = useState({ loading: true, items: null, projects: [], error: null });
 
   useEffect(() => {
-    getTaskQueue()
-      .then(d => setStatus({ loading: false, items: d.queue, error: null }))
-      .catch(err => setStatus({ loading: false, items: null, error: err.message }));
+    Promise.all([getTaskQueue(), getProjectList()])
+      .then(([q, l]) =>
+        setStatus({ loading: false, items: q.queue, projects: l.projects, error: null })
+      )
+      .catch(err => setStatus({ loading: false, items: null, projects: [], error: err.message }));
   }, []);
 
   return (
@@ -55,7 +71,14 @@ export default function TaskReview() {
       {status.items && (
         <SwipeDeck
           items={status.items}
-          renderCard={task => <TaskCard task={task} />}
+          renderCard={(task, helpers) => (
+            <TaskCard
+              task={task}
+              onComplete={helpers?.onComplete}
+              onReschedule={helpers?.onReschedule}
+              allProjects={status.projects}
+            />
+          )}
           actions={ACTIONS}
           emptyTitle="Today is clear"
           emptyDescription="Every task due today has been reviewed."
