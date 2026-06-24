@@ -107,7 +107,12 @@ async function syncCommand(type, args) {
 }
 
 export async function moveProjectToParent(id, parentId) {
-  return syncCommand('project_move', { id, parent_id: parentId });
+  const args = parentId != null ? { id, parent_id: parentId } : { id };
+  return syncCommand('project_move', args);
+}
+
+export async function updateProjectColor(id, color) {
+  return syncCommand('project_update', { id, color });
 }
 
 export async function moveTaskToProject(id, projectId) {

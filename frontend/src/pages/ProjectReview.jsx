@@ -4,15 +4,15 @@ import { getProjectQueue, getProjectList, projectAction, moveProject } from '../
 import SwipeDeck from '../components/SwipeDeck.jsx';
 import ProjectCard from '../components/ProjectCard.jsx';
 
-// `undo` reverses the action when the user hits Back: backlog/someday moved the
-// project, so undo restores its original parent (null = top level); archive is
-// reversed by unarchiving. Keep is a no-op, so it needs no undo.
+// `undo` reverses the action when the user hits Back: backlog colors the project
+// and records it locally (undo restores color via unbacklog); hide records locally
+// only (undo clears via unhide); archive is reversed by unarchiving. Keep is a no-op.
 const ACTIONS = {
   left: {
     label: 'Backlog',
     color: 'var(--backlog)',
     run: item => projectAction(item.id, 'backlog'),
-    undo: item => moveProject(item.id, item.parentId ?? null),
+    undo: item => projectAction(item.id, 'unbacklog'),
   },
   right: {
     label: 'Keep',
@@ -20,10 +20,10 @@ const ACTIONS = {
     run: item => projectAction(item.id, 'keep'),
   },
   up: {
-    label: 'Someday',
-    color: 'var(--someday)',
-    run: item => projectAction(item.id, 'someday'),
-    undo: item => moveProject(item.id, item.parentId ?? null),
+    label: 'Hide 120d',
+    color: 'var(--hide)',
+    run: item => projectAction(item.id, 'hide'),
+    undo: item => projectAction(item.id, 'unhide'),
   },
   down: {
     label: 'Archive',

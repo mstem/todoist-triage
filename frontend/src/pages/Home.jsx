@@ -51,9 +51,9 @@ export default function Home() {
         <DeckCard
           to="/projects"
           title="Weekly Project Review"
-          description="Go through every active project — keep it, push it to Backlog or Someday, or archive it."
+          description="Go through every active project — keep it, push it to Backlog, hide it for 120 days, or archive it."
           status={projectStatus}
-          accentVar="--someday"
+          accentVar="--hide"
         />
         <DeckCard
           to="/tasks"

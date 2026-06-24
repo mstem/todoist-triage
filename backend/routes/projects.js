@@ -6,9 +6,20 @@ import {
   moveProjectToParent,
   archiveProject,
   unarchiveProject,
+  updateProjectColor,
   collectDescendantIds,
 } from '../services/todoist.js';
-import { recordKeep, getRecentlyKeptIds } from '../services/projectDecisions.js';
+import {
+  recordKeep,
+  getRecentlyKeptIds,
+  recordBacklogged,
+  clearBacklogged,
+  getBackloggedEntry,
+  getBackloggedIds,
+  recordHide,
+  clearHide,
+  getHiddenIds,
+} from '../services/projectDecisions.js';
 
 const router = express.Router();
 
@@ -44,9 +55,11 @@ router.get('/review-queue', async (req, res) => {
     // Skip projects the user already swiped "Keep" on within the last 7 days,
     // so a re-run later the same week doesn't re-ask about them.
     const recentlyKept = getRecentlyKeptIds();
+    const backlogged = getBackloggedIds();
+    const hidden = getHiddenIds();
 
     const reviewable = projects
-      .filter(p => !excluded.has(p.id) && !p.is_archived && !recentlyKept.has(p.id))
+      .filter(p => !excluded.has(p.id) && !p.is_archived && !recentlyKept.has(p.id) && !backlogged.has(p.id) && !hidden.has(p.id))
       // Top-level (no-parent) projects first, then most recently created first within each group.
       .sort((a, b) => {
         const aTop = a.parent_id ? 1 : 0;
@@ -129,18 +142,42 @@ router.post('/:id/keep', (req, res) => {
 
 router.post('/:id/backlog', async (req, res) => {
   try {
-    const backlog = await getOrCreateTopLevelProject('Backlog');
-    await moveProjectToParent(req.params.id, backlog.id);
+    const projects = await getProjects();
+    const project = projects.find(p => p.id === req.params.id);
+    const originalColor = project?.color ?? null;
+    await updateProjectColor(req.params.id, 'charcoal');
+    recordBacklogged(req.params.id, { type: 'backlog', originalColor });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/:id/someday', async (req, res) => {
+router.post('/:id/hide', (req, res) => {
   try {
-    const someday = await getOrCreateTopLevelProject('Someday');
-    await moveProjectToParent(req.params.id, someday.id);
+    recordHide(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/unhide', (req, res) => {
+  try {
+    clearHide(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/unbacklog', async (req, res) => {
+  try {
+    const entry = getBackloggedEntry(req.params.id);
+    if (entry?.originalColor) {
+      await updateProjectColor(req.params.id, entry.originalColor);
+    }
+    clearBacklogged(req.params.id);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
