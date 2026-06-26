@@ -16,9 +16,9 @@ const ACTIONS = {
     run: item => taskAction(item.id, 'keep'),
   },
   up: {
-    label: 'Someday',
+    label: 'Remove date',
     color: 'var(--someday)',
-    run: item => taskAction(item.id, 'someday', { labels: item.labels }),
+    run: item => taskAction(item.id, 'remove-date'),
   },
   down: {
     label: 'Delete',

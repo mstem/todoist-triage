@@ -3,6 +3,7 @@ import {
   getTasksDueToday,
   getProjects,
   applyLabelAndClearDue,
+  clearDueDate,
   deleteTask,
   updateTask,
   closeTask,
@@ -65,6 +66,15 @@ router.post('/:id/someday', async (req, res) => {
   try {
     const task = { id: req.params.id, labels: req.body.labels || [] };
     await applyLabelAndClearDue(task, 'someday');
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/remove-date', async (req, res) => {
+  try {
+    await clearDueDate(req.params.id);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

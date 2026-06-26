@@ -124,6 +124,10 @@ export async function applyLabelAndClearDue(task, labelName) {
   return syncCommand('item_update', { id: task.id, labels, due: null });
 }
 
+export async function clearDueDate(id) {
+  return syncCommand('item_update', { id, due: null });
+}
+
 export async function updateTask(id, { content, description }) {
   const args = { id };
   if (content !== undefined) args.content = content;
