@@ -41,7 +41,9 @@ export default function SwipeCard({ children, onSwipe, active, index = 0 }) {
   return (
     <motion.div
       className="swipe-card"
-      style={active ? { x, y, rotate, opacity, zIndex: 100 - index } : { zIndex: 100 - index }}
+      style={active
+        ? { x, y, rotate, opacity, zIndex: 100 - index }
+        : { zIndex: 100 - index, position: 'absolute', left: 0, right: 0 }}
       animate={{ top: index * 12, scale: 1 - index * 0.04 }}
       transition={{ type: 'spring', stiffness: 300, damping: 28 }}
       drag={active}

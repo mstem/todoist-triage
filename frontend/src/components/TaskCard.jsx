@@ -74,8 +74,6 @@ export default function TaskCard({ task, onComplete, onReschedule, allProjects =
 
   const location = [loc.parentProjectName, loc.projectName].filter(Boolean).join(' / ');
 
-  // The title is a textarea sized to fit its content (long titles wrap
-  // across multiple lines instead of being clipped like a single-line input).
   const titleRef = useRef(null);
   function resizeTitle() {
     const el = titleRef.current;
@@ -84,6 +82,15 @@ export default function TaskCard({ task, onComplete, onReschedule, allProjects =
     el.style.height = `${el.scrollHeight}px`;
   }
   useEffect(resizeTitle, []);
+
+  const descRef = useRef(null);
+  function resizeDesc() {
+    const el = descRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }
+  useEffect(resizeDesc, []);
 
   function setField(field, value) {
     setEdits(prev => ({ ...prev, [field]: value }));
@@ -207,14 +214,15 @@ export default function TaskCard({ task, onComplete, onReschedule, allProjects =
       </div>
       <div className="swipe-card__body">
         <textarea
+          ref={descRef}
           className="task-edit__desc task-edit__desc--main"
           value={edits.description}
-          onChange={e => setField('description', e.target.value)}
+          onChange={e => { setField('description', e.target.value); resizeDesc(); }}
           onBlur={() => saveField('description')}
           onPointerDown={e => e.stopPropagation()}
           placeholder="Add a description…"
           aria-label="Task description"
-          rows={12}
+          rows={1}
         />
         {editStatus && (
           <span className={`task-card__edit-status task-edit__status--${editStatus.type}`}>
