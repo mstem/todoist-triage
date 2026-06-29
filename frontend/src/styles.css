@@ -543,7 +543,7 @@ button {
 
 .task-edit__desc--main {
   font-size: 0.95rem;
-  min-height: 4em;
+  min-height: 28em;
 }
 
 .task-edit__title:hover,
