@@ -273,12 +273,15 @@ export default function TaskCard({ task, onComplete, onReschedule, allProjects =
             <button
               type="button"
               className="reschedule-btn"
-              title="Reschedule to three days from now"
-              aria-label="Reschedule to three days from now"
+              title="Reschedule to next Monday"
+              aria-label="Reschedule to next Monday"
               onPointerDown={e => e.stopPropagation()}
-              onClick={() => onReschedule(3)}
+              onClick={() => {
+                const days = ((8 - new Date().getDay()) % 7) || 7;
+                onReschedule(days);
+              }}
             >
-              +3
+              Next week
             </button>
           </div>
         )}
