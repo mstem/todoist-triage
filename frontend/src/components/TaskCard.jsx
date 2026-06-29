@@ -214,7 +214,7 @@ export default function TaskCard({ task, onComplete, onReschedule, allProjects =
           onPointerDown={e => e.stopPropagation()}
           placeholder="Add a description…"
           aria-label="Task description"
-          rows={20}
+          rows={12}
         />
         {editStatus && (
           <span className={`task-card__edit-status task-edit__status--${editStatus.type}`}>
