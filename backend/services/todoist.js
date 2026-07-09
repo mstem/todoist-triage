@@ -37,6 +37,10 @@ function retryAfterMs(res) {
 async function fetchWithRetry(url, options = {}, { retries = 3, baseDelayMs = 300, idempotent } = {}) {
   const method = (options.method || 'GET').toUpperCase();
   const retryStatuses = idempotent ?? method === 'GET';
+  // Every logical request gets one X-Request-Id, reused across retries, so
+  // Todoist can dedupe a retry whose original request landed but whose response
+  // was lost; otherwise non-idempotent POSTs (comments, projects) duplicate.
+  options = { ...options, headers: { 'X-Request-Id': randomUUID(), ...options.headers } };
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
     let res;
