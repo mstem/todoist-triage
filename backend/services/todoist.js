@@ -11,6 +11,28 @@ function authHeaders(extra = {}) {
   return { Authorization: `Bearer ${TOKEN}`, ...extra };
 }
 
+// undici throws a bare TypeError "fetch failed" on network-level errors
+// (dropped connection, DNS hiccup, TLS reset) with no HTTP status. These are
+// almost always transient, so retry a few times with backoff before giving up
+// — otherwise a single blip surfaces "Couldn't load tasks: fetch failed" and
+// the whole review deck fails to load. HTTP error *responses* (4xx/5xx) are
+// returned as-is; the caller decides how to handle them.
+async function fetchWithRetry(url, options, { retries = 3, baseDelayMs = 300 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      lastErr = err;
+      if (attempt === retries) break;
+      const delay = baseDelayMs * 2 ** attempt;
+      console.warn(`[todoist] fetch ${url} failed (${err.message}), retry ${attempt + 1}/${retries} in ${delay}ms`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+}
+
 async function fetchAllPages(path, params = {}) {
   const results = [];
   let cursor = null;
@@ -18,7 +40,7 @@ async function fetchAllPages(path, params = {}) {
     const url = new URL(`${BASE}${path}`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     if (cursor) url.searchParams.set('cursor', cursor);
-    const res = await fetch(url, { headers: authHeaders() });
+    const res = await fetchWithRetry(url, { headers: authHeaders() });
     if (!res.ok) {
       throw new Error(`Todoist GET ${path} failed: ${res.status} ${await res.text()}`);
     }
@@ -44,7 +66,7 @@ export async function getTasksDueToday() {
 }
 
 export async function createProject(name) {
-  const res = await fetch(`${BASE}/projects`, {
+  const res = await fetchWithRetry(`${BASE}/projects`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ name }),
@@ -56,7 +78,7 @@ export async function createProject(name) {
 }
 
 export async function archiveProject(id) {
-  const res = await fetch(`${BASE}/projects/${id}/archive`, {
+  const res = await fetchWithRetry(`${BASE}/projects/${id}/archive`, {
     method: 'POST',
     headers: authHeaders(),
   });
@@ -67,7 +89,7 @@ export async function archiveProject(id) {
 }
 
 export async function unarchiveProject(id) {
-  const res = await fetch(`${BASE}/projects/${id}/unarchive`, {
+  const res = await fetchWithRetry(`${BASE}/projects/${id}/unarchive`, {
     method: 'POST',
     headers: authHeaders(),
   });
@@ -82,7 +104,7 @@ async function syncCommands(commands) {
   const syncStatus = {};
   for (let i = 0; i < commands.length; i += BATCH_SIZE) {
     const batch = commands.slice(i, i + BATCH_SIZE);
-    const res = await fetch(`${BASE}/sync`, {
+    const res = await fetchWithRetry(`${BASE}/sync`, {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ commands: batch }),
@@ -162,7 +184,7 @@ export async function rescheduleTask(id, days, currentDue) {
 }
 
 export async function deleteTask(id) {
-  const res = await fetch(`${BASE}/tasks/${id}`, {
+  const res = await fetchWithRetry(`${BASE}/tasks/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });
@@ -172,7 +194,7 @@ export async function deleteTask(id) {
 }
 
 export async function closeTask(id) {
-  const res = await fetch(`${BASE}/tasks/${id}/close`, {
+  const res = await fetchWithRetry(`${BASE}/tasks/${id}/close`, {
     method: 'POST',
     headers: authHeaders(),
   });
@@ -182,7 +204,7 @@ export async function closeTask(id) {
 }
 
 export async function reopenTask(id) {
-  const res = await fetch(`${BASE}/tasks/${id}/reopen`, {
+  const res = await fetchWithRetry(`${BASE}/tasks/${id}/reopen`, {
     method: 'POST',
     headers: authHeaders(),
   });
@@ -193,7 +215,7 @@ export async function reopenTask(id) {
 
 export async function postComment({ taskId, projectId, content }) {
   const body = taskId ? { task_id: taskId, content } : { project_id: projectId, content };
-  const res = await fetch(`${BASE}/comments`, {
+  const res = await fetchWithRetry(`${BASE}/comments`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
@@ -230,7 +252,7 @@ export async function getOrCreateTopLevelProject(name) {
 // this just gives backlog/someday a consistent color from the start.
 export async function ensureLabelExists(name) {
   try {
-    const res = await fetch(`${BASE}/labels`, {
+    const res = await fetchWithRetry(`${BASE}/labels`, {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ name }),
