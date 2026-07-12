@@ -132,6 +132,21 @@ export async function getBacklogTasks() {
   return fetchAllPages('/tasks/filter', { query: `@${BACKLOG_LABEL}`, limit: 200 });
 }
 
+// Collaborators across all shared projects, keyed by their user id. Tasks only
+// carry a `responsible_uid`, so this is how we turn an assignee into a name.
+export async function getCollaborators() {
+  const res = await fetchWithRetry(`${BASE}/sync`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ sync_token: '*', resource_types: JSON.stringify(['collaborators']) }),
+  });
+  if (!res.ok) {
+    throw new Error(`Todoist getCollaborators failed: ${res.status} ${await res.text()}`);
+  }
+  const data = await res.json();
+  return data.collaborators ?? [];
+}
+
 export async function createProject(name) {
   const res = await fetchWithRetry(`${BASE}/projects`, {
     method: 'POST',
