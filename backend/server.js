@@ -17,6 +17,7 @@ import projectsRouter from './routes/projects.js';
 import tasksRouter from './routes/tasks.js';
 import aiRouter from './routes/ai.js';
 import { ensureLabelExists } from './services/todoist.js';
+import { startWikiSyncTimer } from './services/wikiSync.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -55,3 +56,6 @@ app.listen(PORT, () => {
 // Make sure the labels we apply during task triage exist (non-blocking)
 ensureLabelExists('backlog');
 ensureLabelExists('someday');
+
+// Keep the completed-task wiki (~/Projects/bible.md) in sync
+startWikiSyncTimer();

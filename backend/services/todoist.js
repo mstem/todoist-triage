@@ -75,7 +75,8 @@ async function fetchAllPages(path, params = {}) {
       throw new Error(`Todoist GET ${path} failed: ${res.status} ${await res.text()}`);
     }
     const data = await res.json();
-    const page = Array.isArray(data) ? data : (data.results ?? []);
+    // Most v1 endpoints wrap pages as {results}, but /tasks/completed/* uses {items}
+    const page = Array.isArray(data) ? data : (data.results ?? data.items ?? []);
     results.push(...page);
     cursor = Array.isArray(data) ? null : data.next_cursor;
     if (!cursor) break;
@@ -85,6 +86,37 @@ async function fetchAllPages(path, params = {}) {
 
 export async function getProjects() {
   return fetchAllPages('/projects', { limit: 200 });
+}
+
+export async function getArchivedProjects() {
+  return fetchAllPages('/projects/archived', { limit: 200 });
+}
+
+// Completed tasks by completion date. Todoist caps each request's window at
+// 3 months (error 400 beyond that) — callers slide windows for longer spans.
+// Completed tasks in ARCHIVED projects are excluded from the unfiltered feed
+// but ARE returned when project_id is passed explicitly.
+export async function getCompletedTasks({ since, until, projectId } = {}) {
+  const params = { since, until, limit: 200 };
+  if (projectId) params.project_id = projectId;
+  return fetchAllPages('/tasks/completed/by_completion_date', params);
+}
+
+// Works for completed tasks too (completed items carry note_count).
+export async function getComments(taskId) {
+  return fetchAllPages('/comments', { task_id: taskId, limit: 200 });
+}
+
+export async function getSections(projectId) {
+  return fetchAllPages('/sections', { project_id: projectId, limit: 200 });
+}
+
+export async function getUser() {
+  const res = await fetchWithRetry(`${BASE}/user`, { headers: authHeaders() });
+  if (!res.ok) {
+    throw new Error(`Todoist getUser failed: ${res.status} ${await res.text()}`);
+  }
+  return res.json();
 }
 
 export async function getTasksForProject(projectId) {
