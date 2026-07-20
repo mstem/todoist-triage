@@ -115,6 +115,7 @@ export default function SwipeDeck({ items, renderCard, actions, emptyTitle, empt
                 ? {
                     onComplete: () => handleSwipe('complete'),
                     onReschedule: days => handleSwipe('reschedule', { days }),
+                    onRemoveDate: () => handleSwipe('up'),
                   }
                 : null
             )}

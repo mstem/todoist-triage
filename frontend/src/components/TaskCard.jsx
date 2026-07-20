@@ -51,7 +51,7 @@ function safeHref(url) {
   }
 }
 
-export default function TaskCard({ task, onComplete, onReschedule, allProjects = [] }) {
+export default function TaskCard({ task, onComplete, onReschedule, onRemoveDate, allProjects = [] }) {
   // Parse the title's markdown links once — the URLs are intrinsic to the task
   // and don't change as the user edits the clean title text.
   const parsed = useRef(parseLinks(task.content)).current;
@@ -284,6 +284,18 @@ export default function TaskCard({ task, onComplete, onReschedule, allProjects =
               Next week
             </button>
           </div>
+        )}
+        {onRemoveDate && task.due?.string && (
+          <button
+            type="button"
+            className="reschedule-btn reschedule-btn--remove"
+            title="Remove due date"
+            aria-label="Remove due date"
+            onPointerDown={e => e.stopPropagation()}
+            onClick={onRemoveDate}
+          >
+            Remove date
+          </button>
         )}
         <AIButton
           name={edits.content}

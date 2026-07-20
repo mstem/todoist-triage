@@ -649,6 +649,11 @@ button {
   outline-offset: 2px;
 }
 
+.reschedule-btn--remove:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
 /* ---------- AI button ---------- */
 
 .ai-button {

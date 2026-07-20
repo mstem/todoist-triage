@@ -76,6 +76,7 @@ export default function TaskReview() {
               task={task}
               onComplete={helpers?.onComplete}
               onReschedule={helpers?.onReschedule}
+              onRemoveDate={helpers?.onRemoveDate}
               allProjects={status.projects}
             />
           )}
