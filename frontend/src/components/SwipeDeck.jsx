@@ -108,17 +108,17 @@ export default function SwipeDeck({ items, renderCard, actions, emptyTitle, empt
 
       <div className="swipe-card-stack">
         {visible.map((item, i) => (
+          // Only the active card renders its contents. The ones behind it are
+          // clipped to a 12px sliver, so their text would show as a cut-off
+          // line along the bottom edge; blank cards read as a stack instead.
           <SwipeCard key={item.id} active={i === 0} index={i} onSwipe={handleSwipe}>
-            {renderCard(
-              item,
-              i === 0
-                ? {
-                    onComplete: () => handleSwipe('complete'),
-                    onReschedule: days => handleSwipe('reschedule', { days }),
-                    onRemoveDate: () => handleSwipe('up'),
-                  }
-                : null
-            )}
+            {i === 0
+              ? renderCard(item, {
+                  onComplete: () => handleSwipe('complete'),
+                  onReschedule: days => handleSwipe('reschedule', { days }),
+                  onRemoveDate: () => handleSwipe('up'),
+                })
+              : null}
           </SwipeCard>
         ))}
       </div>

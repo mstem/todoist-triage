@@ -307,7 +307,11 @@ button {
   position: relative;
   width: 100%;
   max-width: 420px;
-  padding-bottom: 24px;
+  /* Margin, not padding: the stacked cards behind the active one are sized at
+     height 100%, which resolves against this element's padding box. Padding
+     here would make them taller than the active card and push their peeking
+     edge out of line. The 24px still reserves room for that peek. */
+  margin-bottom: 24px;
 }
 
 .swipe-card {
@@ -330,8 +334,14 @@ button {
   cursor: grabbing;
 }
 
+/* Cards waiting behind the active one are decoration — they only ever show as
+   a 12px sliver below its bottom edge. Card heights vary with content, so
+   without this a short active card lets a tall one behind it spill down the
+   page. Match the active card's height and clip the rest. */
 .swipe-card[data-active='false'] {
   pointer-events: none;
+  height: 100%;
+  overflow: hidden;
 }
 
 .swipe-card__eyebrow {
