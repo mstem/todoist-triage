@@ -11,24 +11,50 @@ function authHeaders(extra = {}) {
   return { Authorization: `Bearer ${TOKEN}`, ...extra };
 }
 
-// undici throws a bare TypeError "fetch failed" on network-level errors
-// (dropped connection, DNS hiccup, TLS reset) with no HTTP status. These are
-// almost always transient, so retry a few times with backoff before giving up
-// — otherwise a single blip surfaces "Couldn't load tasks: fetch failed" and
-// the whole review deck fails to load. HTTP error *responses* (4xx/5xx) are
-// returned as-is; the caller decides how to handle them.
-async function fetchWithRetry(url, options, { retries = 3, baseDelayMs = 300 } = {}) {
+// Todoist fails in two transient ways and both used to sink a whole page load.
+// 1. undici throws a bare TypeError "fetch failed" on network-level errors
+//    (dropped connection, DNS hiccup, TLS reset) with no HTTP status.
+// 2. The API itself answers 429/5xx under load — the review queue fans out one
+//    /tasks call per project, and a single 502 in that burst surfaced as
+//    "Couldn't load projects: Todoist GET /tasks failed: 502".
+// Both are retried with exponential backoff, honouring Retry-After when sent.
+// Status retries only apply to safely repeatable calls — GETs, and the /sync
+// endpoint whose commands carry a uuid Todoist dedupes on. A plain POST that
+// 502s may already have created the project or comment, so it is handed back
+// to the caller rather than fired again. Other HTTP errors (4xx) return as-is.
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+function retryAfterMs(res) {
+  const header = res.headers.get('retry-after');
+  if (!header) return null;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds)) return Math.min(seconds * 1000, 10_000);
+  const date = Date.parse(header);
+  if (Number.isNaN(date)) return null;
+  return Math.min(Math.max(date - Date.now(), 0), 10_000);
+}
+
+async function fetchWithRetry(url, options = {}, { retries = 3, baseDelayMs = 300, idempotent } = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const retryStatuses = idempotent ?? method === 'GET';
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
+    let res;
     try {
-      return await fetch(url, options);
+      res = await fetch(url, options);
     } catch (err) {
       lastErr = err;
       if (attempt === retries) break;
       const delay = baseDelayMs * 2 ** attempt;
       console.warn(`[todoist] fetch ${url} failed (${err.message}), retry ${attempt + 1}/${retries} in ${delay}ms`);
       await new Promise(r => setTimeout(r, delay));
+      continue;
     }
+    if (!retryStatuses || !RETRYABLE_STATUSES.has(res.status) || attempt === retries) return res;
+    // Jitter so 15 concurrent callers don't all retry on the same beat.
+    const delay = retryAfterMs(res) ?? baseDelayMs * 2 ** attempt + Math.floor(Math.random() * 200);
+    console.warn(`[todoist] fetch ${url} got ${res.status}, retry ${attempt + 1}/${retries} in ${delay}ms`);
+    await new Promise(r => setTimeout(r, delay));
   }
   throw lastErr;
 }
@@ -59,6 +85,23 @@ export async function getProjects() {
 
 export async function getTasksForProject(projectId) {
   return fetchAllPages('/tasks', { project_id: projectId, limit: 200 });
+}
+
+// Every active task in a single request, for callers that need tasks across
+// many projects at once. Todoist rate-limits per user, and a full sync returns
+// all items at once where REST would need a call per project (or 27 cursor
+// pages). Completed and deleted items are filtered out to match /tasks.
+export async function getAllTasks() {
+  const res = await fetchWithRetry(`${BASE}/sync`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ sync_token: '*', resource_types: ['items'] }),
+  }, { idempotent: true });
+  if (!res.ok) {
+    throw new Error(`Todoist getAllTasks failed: ${res.status} ${await res.text()}`);
+  }
+  const data = await res.json();
+  return (data.items ?? []).filter(item => !item.checked && !item.is_deleted);
 }
 
 export async function getTasksDueToday() {
@@ -108,7 +151,7 @@ async function syncCommands(commands) {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ commands: batch }),
-    });
+    }, { idempotent: true });
     if (!res.ok) {
       throw new Error(`Todoist sync failed: ${res.status} ${await res.text()}`);
     }

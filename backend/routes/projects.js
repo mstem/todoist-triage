@@ -1,7 +1,7 @@
 import express from 'express';
 import {
   getProjects,
-  getTasksForProject,
+  getAllTasks,
   getOrCreateTopLevelProject,
   moveProjectToParent,
   archiveProject,
@@ -22,23 +22,6 @@ import {
 } from '../services/projectDecisions.js';
 
 const router = express.Router();
-
-const TASK_FETCH_CONCURRENCY = 15;
-
-async function mapWithConcurrency(items, limit, fn) {
-  const results = new Array(items.length);
-  let nextIndex = 0;
-
-  async function worker() {
-    while (nextIndex < items.length) {
-      const i = nextIndex++;
-      results[i] = await fn(items[i]);
-    }
-  }
-
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-  return results;
-}
 
 router.get('/review-queue', async (req, res) => {
   try {
@@ -68,8 +51,18 @@ router.get('/review-queue', async (req, res) => {
         return (b.created_at ?? '').localeCompare(a.created_at ?? '');
       });
 
-    const queue = await mapWithConcurrency(reviewable, TASK_FETCH_CONCURRENCY, async project => {
-      const tasks = await getTasksForProject(project.id);
+    // One sweep of all active tasks, grouped locally, instead of a /tasks call
+    // per project — that fan-out was ~150 concurrent requests per load and drew
+    // 502s from Todoist's rate limiter.
+    const tasksByProject = new Map();
+    for (const task of await getAllTasks()) {
+      const bucket = tasksByProject.get(task.project_id);
+      if (bucket) bucket.push(task);
+      else tasksByProject.set(task.project_id, [task]);
+    }
+
+    const queue = reviewable.map(project => {
+      const tasks = tasksByProject.get(project.id) ?? [];
       const sampleTasks = [...tasks]
         .sort((a, b) => a.child_order - b.child_order)
         .slice(0, 3)
