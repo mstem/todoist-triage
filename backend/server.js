@@ -20,7 +20,9 @@ import { ensureLabelExists } from './services/todoist.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const PORT = process.env.PORT || 3001;
+// PORT_OVERRIDE wins over .env so a launcher can move the server when 3004 is
+// already taken by another project. Secrets still come from .env as before.
+const PORT = process.env.PORT_OVERRIDE || process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
@@ -40,6 +42,13 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
+  // Record the live port so the Vite dev proxy targets this server rather than
+  // whichever project has since claimed the port it was last configured for.
+  try {
+    fs.writeFileSync(path.join(__dirname, '..', '.port'), `${PORT}\n`);
+  } catch (err) {
+    console.warn(`[server] could not write .port: ${err.message}`);
+  }
   console.log(`Todoist Triage server running on http://localhost:${PORT}`);
 });
 

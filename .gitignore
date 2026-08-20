@@ -9,3 +9,5 @@ backend/ai-workspace/*
 !backend/ai-workspace/.gitkeep
 public/
 .DS_Store
+
+.port
