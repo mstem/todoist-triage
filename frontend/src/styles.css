@@ -621,9 +621,23 @@ button {
   padding-top: 16px;
   border-top: 1px solid var(--border);
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.swipe-card__footer-row {
+  position: relative;
+  display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Date actions sit on their own row so long labels can't squeeze each other. */
+.swipe-card__footer-row--dates {
+  justify-content: flex-start;
+  row-gap: 8px;
 }
 
 .swipe-card__footer .swipe-card__due {
@@ -631,13 +645,33 @@ button {
   margin-right: auto;
 }
 
-/* ---------- reschedule buttons ---------- */
-
-.reschedule-group {
-  display: inline-flex;
-  gap: 6px;
-  flex-shrink: 0;
+.swipe-card__due--button {
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s ease-out, color 0.12s ease-out;
 }
+
+.swipe-card__due--button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.swipe-card__due--button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Kept in the layout but out of sight: a display:none input can't open its
+   native date picker. */
+.swipe-card__due-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- reschedule buttons ---------- */
 
 .reschedule-btn {
   display: inline-flex;
@@ -652,6 +686,7 @@ button {
   color: var(--ink-muted);
   font-size: 0.8rem;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   transition: transform 0.12s ease-out, box-shadow 0.12s ease-out, border-color 0.12s ease-out,
     color 0.12s ease-out;
@@ -671,11 +706,6 @@ button {
 .reschedule-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-.reschedule-btn--remove:hover {
-  border-color: var(--danger);
-  color: var(--danger);
 }
 
 /* ---------- AI button ---------- */

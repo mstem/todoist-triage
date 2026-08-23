@@ -38,6 +38,34 @@ function linkLabel(url) {
   return url.replace(/^https?:\/\//, '');
 }
 
+// Todoist keeps `due.string` as whatever the date was originally typed as ("Jun
+// 25", "every friday"). Rollforward moves `due.date` without rewriting that
+// string, so the string routinely names a date the task is no longer due on —
+// only `due.date` is authoritative. Format that instead, and keep the string
+// alongside it only when it carries recurrence the date can't express.
+function formatDue(due) {
+  const iso = (due?.date || '').slice(0, 10);
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return due?.string || '';
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((date - today) / 86400000);
+
+  let label;
+  if (days === 0) label = 'Today';
+  else if (days === 1) label = 'Tomorrow';
+  else if (days === -1) label = 'Yesterday';
+  else {
+    label = date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      ...(date.getFullYear() === today.getFullYear() ? {} : { year: 'numeric' }),
+    });
+  }
+  return due.is_recurring && due.string ? `${label} · ${due.string}` : label;
+}
+
 // Only allow web/mail schemes as a clickable href — a "javascript:" (or other)
 // URI from a task title would execute on click. Returns null for anything else
 // so the caller can fall back to plain text. The raw URL is still kept for the
@@ -51,7 +79,7 @@ function safeHref(url) {
   }
 }
 
-export default function TaskCard({ task, onComplete, onReschedule, onRemoveDate, allProjects = [] }) {
+export default function TaskCard({ task, onComplete, onReschedule, allProjects = [] }) {
   // Parse the title's markdown links once — the URLs are intrinsic to the task
   // and don't change as the user edits the clean title text.
   const parsed = useRef(parseLinks(task.content)).current;
@@ -117,6 +145,30 @@ export default function TaskCard({ task, onComplete, onReschedule, onRemoveDate,
     } catch (err) {
       setEditStatus({ type: 'error', msg: `Couldn't save — ${err.message}` });
     }
+  }
+
+  const dueLabel = task.due ? formatDue(task.due) : '';
+
+  // The due pill opens a native date picker. Reschedule is expressed as an
+  // offset in days from today, so convert the picked calendar date to that
+  // offset at local midnight (Math.round absorbs any DST hour).
+  const dueInputRef = useRef(null);
+
+  function openDuePicker() {
+    const el = dueInputRef.current;
+    if (!el) return;
+    if (typeof el.showPicker === 'function') el.showPicker();
+    else el.click();
+  }
+
+  function pickDueDate(value) {
+    if (!value || !onReschedule) return;
+    const [y, m, d] = value.split('-').map(Number);
+    const picked = new Date(y, m - 1, d);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.round((picked - today) / 86400000);
+    onReschedule(days);
   }
 
   async function handleMove(target) {
@@ -247,9 +299,56 @@ export default function TaskCard({ task, onComplete, onReschedule, onRemoveDate,
         </div>
       )}
       <div className="swipe-card__footer">
-        {task.due?.string && <span className="swipe-card__due">Due {task.due.string}</span>}
+        <div className="swipe-card__footer-row">
+          {dueLabel ? (
+            onReschedule ? (
+              <>
+                <button
+                  type="button"
+                  className="swipe-card__due swipe-card__due--button"
+                  title="Pick a due date"
+                  aria-label={`Due ${dueLabel} — pick a different date`}
+                  onPointerDown={e => e.stopPropagation()}
+                  onClick={openDuePicker}
+                >
+                  Due {dueLabel}
+                </button>
+                {/* Off-screen rather than display:none — a hidden input can't
+                    open its native picker. */}
+                <input
+                  ref={dueInputRef}
+                  type="date"
+                  className="swipe-card__due-input"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  defaultValue={(task.due.date || '').slice(0, 10)}
+                  onPointerDown={e => e.stopPropagation()}
+                  onChange={e => pickDueDate(e.target.value)}
+                />
+              </>
+            ) : (
+              <span className="swipe-card__due">Due {dueLabel}</span>
+            )
+          ) : null}
+          <AIButton
+            name={edits.content}
+            onTrigger={() =>
+              aiTask({
+                todoistId: task.id,
+                content: edits.content,
+                description: edits.description,
+                projectName: loc.projectName,
+                parentProjectName: loc.parentProjectName,
+              })
+            }
+          />
+        </div>
         {onReschedule && (
-          <div className="reschedule-group" role="group" aria-label="Reschedule task">
+          <div
+            className="swipe-card__footer-row swipe-card__footer-row--dates"
+            role="group"
+            aria-label="Reschedule task"
+          >
             <button
               type="button"
               className="reschedule-btn"
@@ -285,30 +384,6 @@ export default function TaskCard({ task, onComplete, onReschedule, onRemoveDate,
             </button>
           </div>
         )}
-        {onRemoveDate && task.due?.string && (
-          <button
-            type="button"
-            className="reschedule-btn reschedule-btn--remove"
-            title="Remove due date"
-            aria-label="Remove due date"
-            onPointerDown={e => e.stopPropagation()}
-            onClick={onRemoveDate}
-          >
-            Remove date
-          </button>
-        )}
-        <AIButton
-          name={edits.content}
-          onTrigger={() =>
-            aiTask({
-              todoistId: task.id,
-              content: edits.content,
-              description: edits.description,
-              projectName: loc.projectName,
-              parentProjectName: loc.parentProjectName,
-            })
-          }
-        />
       </div>
     </>
   );
