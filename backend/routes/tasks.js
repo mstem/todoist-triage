@@ -130,13 +130,14 @@ router.post('/:id/move', async (req, res) => {
   }
 });
 
-// Reschedule a task `days` from today (0-3). 0 is used by the swipe deck's
-// undo to restore the original due date.
+// Reschedule a task `days` from today. 0 is used by the swipe deck's undo to
+// restore the original due date; the card's date picker can send any offset
+// inside a year either side of today.
 router.post('/:id/reschedule', async (req, res) => {
   try {
     const { days, due } = req.body;
-    if (![0, 1, 2, 3].includes(days)) {
-      return res.status(400).json({ error: 'days must be 0, 1, 2, or 3' });
+    if (!Number.isInteger(days) || days < -365 || days > 365) {
+      return res.status(400).json({ error: 'days must be a whole number between -365 and 365' });
     }
     const result = await rescheduleTask(req.params.id, days, due);
     res.json({ ok: true, ...result });
