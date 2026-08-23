@@ -48,6 +48,20 @@ h3 {
   letter-spacing: -0.01em;
 }
 
+/* Fraunces ships a wonk axis (swashed, off-kilter letterforms) and reflows its
+   contrast as the optical size follows the font size. Both make headings look
+   unsteady across the app's size range, so pin every axis: one fixed display
+   cut, no wonk, no softening, and no synthesised bold. */
+h1,
+h2,
+h3,
+.deck-card__count,
+.task-edit__title--main {
+  font-optical-sizing: none;
+  font-variation-settings: 'opsz' 32, 'SOFT' 0, 'WONK' 0;
+  font-synthesis: none;
+}
+
 p {
   margin: 0;
 }
