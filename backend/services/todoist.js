@@ -108,6 +108,21 @@ export async function getTasksDueToday() {
   return fetchAllPages('/tasks/filter', { query: 'date:today', limit: 200 });
 }
 
+// Everything that has left the today list without being done, by either route: swiped
+// to Backlog here, or given up on by the nightly roll-forward once its push count passed
+// ROLLOVER_LIMIT. Both apply this one label and clear the due date, so no date-based
+// query finds these tasks and the label is the only handle on them.
+export const BACKLOG_LABEL = 'backlog';
+
+// Mirrors ROLLOVER_LIMIT in rollforward.py. Only used to mark which rows on the Backlog
+// page got there by stalling rather than by a deliberate swipe — the script owns the
+// actual decision, so set it in both places if you change it.
+export const ROLLOVER_LIMIT = Number(process.env.ROLLOVER_LIMIT) || 21;
+
+export async function getBacklogTasks() {
+  return fetchAllPages('/tasks/filter', { query: `@${BACKLOG_LABEL}`, limit: 200 });
+}
+
 export async function createProject(name) {
   const res = await fetchWithRetry(`${BASE}/projects`, {
     method: 'POST',
@@ -187,6 +202,21 @@ export async function moveTaskToProject(id, projectId) {
 export async function applyLabelAndClearDue(task, labelName) {
   const labels = Array.from(new Set([...(task.labels || []), labelName]));
   return syncCommand('item_update', { id: task.id, labels, due: null });
+}
+
+// Put a backlogged task back on today's list: drop the label that keeps it out of the
+// deck and give it today's date, so the next roll-forward treats it as a normal task
+// again. Its postponed_count is untouched, so a task that stalled its way here and is
+// pushed again lands back on the Backlog page.
+export async function restoreBacklogTask(task) {
+  const labels = (task.labels || []).filter(l => l !== BACKLOG_LABEL);
+  const date = formatLocalDate(new Date());
+  await syncCommand('item_update', {
+    id: task.id,
+    labels,
+    due: { date, string: date, is_recurring: false, lang: 'en' },
+  });
+  return { date };
 }
 
 export async function clearDueDate(id) {

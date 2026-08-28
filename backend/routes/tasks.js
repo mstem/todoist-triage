@@ -10,6 +10,10 @@ import {
   reopenTask,
   moveTaskToProject,
   rescheduleTask,
+  getBacklogTasks,
+  restoreBacklogTask,
+  BACKLOG_LABEL,
+  ROLLOVER_LIMIT,
 } from '../services/todoist.js';
 import { recordKeep, getRecentlyKeptIds } from '../services/taskDecisions.js';
 
@@ -26,6 +30,10 @@ router.get('/review-queue', async (req, res) => {
 
     const queue = tasks
       .filter(t => !t.checked && !recentlyKept.has(t.id))
+      // Backlogged tasks belong on the Backlog page, not in the deck. Backlogging
+      // clears the due date, so date:today normally won't return them anyway — this
+      // catches the window between the label landing and the date being cleared.
+      .filter(t => !(t.labels || []).includes(BACKLOG_LABEL))
       .map(t => {
         const project = byId.get(t.project_id);
         const parent = project?.parent_id ? byId.get(project.parent_id) : null;
@@ -47,6 +55,52 @@ router.get('/review-queue', async (req, res) => {
   }
 });
 
+// The Backlog: everything off the today list but not done, whether swiped there by hand
+// or dropped by the nightly roll-forward after too many pushes. One label covers both, so
+// they can't be told apart — but ordering by push count, worst first, puts what has been
+// dying on the today list longest at the top, and `stalled` marks what crossed the limit.
+router.get('/backlog', async (req, res) => {
+  try {
+    const [tasks, projects] = await Promise.all([getBacklogTasks(), getProjects()]);
+    const byId = new Map(projects.map(p => [p.id, p]));
+
+    const items = tasks
+      .filter(t => !t.checked)
+      .map(t => {
+        const project = byId.get(t.project_id);
+        const parent = project?.parent_id ? byId.get(project.parent_id) : null;
+        return {
+          id: t.id,
+          content: t.content,
+          labels: t.labels,
+          priority: t.priority,
+          postponedCount: t.postponed_count ?? 0,
+          stalled: (t.postponed_count ?? 0) > ROLLOVER_LIMIT,
+          addedAt: t.added_at,
+          projectId: t.project_id,
+          projectName: project?.name ?? null,
+          parentProjectName: parent?.name ?? null,
+        };
+      })
+      .sort((a, b) => b.postponedCount - a.postponedCount);
+
+    res.json({ items, rolloverLimit: ROLLOVER_LIMIT });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Put one back on today's list: drops the label and sets today's date.
+router.post('/:id/restore', async (req, res) => {
+  try {
+    const task = { id: req.params.id, labels: req.body.labels || [] };
+    const result = await restoreBacklogTask(task);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/:id/keep', (req, res) => {
   recordKeep(req.params.id);
   res.json({ ok: true });
@@ -55,7 +109,7 @@ router.post('/:id/keep', (req, res) => {
 router.post('/:id/backlog', async (req, res) => {
   try {
     const task = { id: req.params.id, labels: req.body.labels || [] };
-    await applyLabelAndClearDue(task, 'backlog');
+    await applyLabelAndClearDue(task, BACKLOG_LABEL);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

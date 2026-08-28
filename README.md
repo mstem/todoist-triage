@@ -4,6 +4,7 @@ A swipe app for triaging your [Todoist](https://todoist.com). If you live out of
 
 - **Weekly Project Review** — swipe through every active project: **Keep**, move to **Backlog**, move to **Someday**, or **Archive**.
 - **Do: Today Review** — swipe through every task due today: **Keep**, **Backlog**, **Someday**, or **Delete**.
+- **Backlog** — a plain list, not a deck: everything that has left the today deck without being done, whether swiped to Backlog here or dropped by the nightly roll-forward after too many pushes. Each row offers **Back to today**, **Done**, or **Delete**.
 
 Each card also has an optional **AI** button that drafts a next-step plan and posts it back to the project/task as a Todoist comment (it only proposes a plan — it doesn't do the work).
 
@@ -81,6 +82,19 @@ cd frontend && npm run dev     # Vite dev server with HMR
 The AI button shells out to the [Claude Code](https://www.claude.com/product/claude-code) CLI (`claude -p`) to read the project/task and draft a next-step plan, then posts it back as a Todoist comment.
 
 To use it you need the `claude` CLI installed and authenticated on the machine running the backend. Point `CLAUDE_BIN` at the binary if it isn't on your `PATH`. If you don't set this up, the rest of the app works fine — only the AI button is affected.
+
+## The Backlog page
+
+Two things put a task here, and both apply the same `backlog` label and clear the due date:
+
+- Swiping a task to **Backlog** in the Do: Today Review.
+- The companion [todoist-roll-forward](https://github.com/mstem/todoist-roll-forward) script, which runs nightly and moves overdue tasks onto today. When a task's push count (Todoist's own `postponed_count`) passes 21 it stops moving that task and backlogs it instead. Tasks with a priority set and recurring tasks are never treated this way.
+
+One label covers both routes, so the page can't say which one a task took. It orders by push count, worst first, and marks in amber the tasks that are over the limit — those are the ones that stalled rather than being swiped off deliberately.
+
+A backlogged task has no due date, which is why it drops out of the Do: Today deck on its own. **Back to today** removes the label and sets today's date, putting it back in the deck. Its push count is untouched, so a task brought back and pushed again lands here again.
+
+The threshold is `ROLLOVER_LIMIT`, read from the environment by both the roll-forward script (which decides) and this server (which only marks rows). Change it in both places.
 
 ## Notes
 

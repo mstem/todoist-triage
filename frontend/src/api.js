@@ -14,6 +14,7 @@ async function request(path, options = {}) {
 
 export const getProjectQueue = () => request('/projects/review-queue');
 export const getTaskQueue = () => request('/tasks/review-queue');
+export const getBacklog = () => request('/tasks/backlog');
 
 export const getProjectList = () => request('/projects/list');
 
@@ -37,6 +38,9 @@ export const updateTask = (id, body) =>
 
 export const moveTask = (id, projectId) =>
   request(`/tasks/${id}/move`, { method: 'POST', body: JSON.stringify({ projectId }) });
+
+export const restoreTask = (id, labels) =>
+  request(`/tasks/${id}/restore`, { method: 'POST', body: JSON.stringify({ labels }) });
 
 export const rescheduleTask = (id, days, due) =>
   request(`/tasks/${id}/reschedule`, { method: 'POST', body: JSON.stringify({ days, due }) });

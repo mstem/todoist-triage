@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getProjectQueue, getTaskQueue } from '../api.js';
+import { getProjectQueue, getTaskQueue, getBacklog } from '../api.js';
 
 const initialStatus = { loading: true, count: null, error: null };
 
-function DeckCard({ to, title, description, status, accentVar }) {
+function DeckCard({ to, title, description, status, accentVar, cta = 'Start review →' }) {
   return (
     <Link to={to} className="deck-card" style={{ '--deck-accent': `var(${accentVar})` }}>
       <div className="deck-card__count">
@@ -19,7 +19,7 @@ function DeckCard({ to, title, description, status, accentVar }) {
       <h2 className="deck-card__title">{title}</h2>
       <p className="deck-card__description">{description}</p>
       {status.error && <p className="deck-card__error">Couldn't load count: {status.error}</p>}
-      <span className="deck-card__cta">Start review →</span>
+      <span className="deck-card__cta">{cta}</span>
     </Link>
   );
 }
@@ -27,6 +27,7 @@ function DeckCard({ to, title, description, status, accentVar }) {
 export default function Home() {
   const [projectStatus, setProjectStatus] = useState(initialStatus);
   const [taskStatus, setTaskStatus] = useState(initialStatus);
+  const [backlogStatus, setBacklogStatus] = useState(initialStatus);
 
   useEffect(() => {
     getProjectQueue()
@@ -36,6 +37,10 @@ export default function Home() {
     getTaskQueue()
       .then(d => setTaskStatus({ loading: false, count: d.queue.length, error: null }))
       .catch(err => setTaskStatus({ loading: false, count: null, error: err.message }));
+
+    getBacklog()
+      .then(d => setBacklogStatus({ loading: false, count: d.items.length, error: null }))
+      .catch(err => setBacklogStatus({ loading: false, count: null, error: err.message }));
   }, []);
 
   return (
@@ -61,6 +66,14 @@ export default function Home() {
           description="Go through everything due today — keep it on today, push it off, or delete it."
           status={taskStatus}
           accentVar="--accent"
+        />
+        <DeckCard
+          to="/backlog"
+          title="Backlog"
+          description="Tasks pushed forward more than 21 times. The roll-forward stopped moving them and the today deck no longer asks about them."
+          status={backlogStatus}
+          accentVar="--backlog"
+          cta="Open list →"
         />
       </div>
     </div>
