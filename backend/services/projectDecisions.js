@@ -8,7 +8,7 @@ const FILE = path.join(DATA_DIR, 'kept-projects.json');
 const BACKLOGGED_FILE = path.join(DATA_DIR, 'backlogged-projects.json');
 const HIDDEN_FILE = path.join(DATA_DIR, 'hidden-projects.json');
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const HIDE_RETENTION_MS = 120 * 24 * 60 * 60 * 1000;
+const HIDE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 function load() {
   try {
@@ -78,7 +78,7 @@ export function getBackloggedIds() {
   return new Set(Object.keys(loadBacklogged()));
 }
 
-// ── Hidden tracking (120-day snooze, no Todoist changes) ────────────────────
+// ── Hidden tracking (30-day snooze, no Todoist changes) ────────────────────
 
 function loadHidden() {
   try {

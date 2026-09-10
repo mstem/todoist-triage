@@ -7,6 +7,7 @@ import {
   archiveProject,
   unarchiveProject,
   updateProjectColor,
+  updateProjectDescription,
   collectDescendantIds,
 } from '../services/todoist.js';
 import {
@@ -41,10 +42,18 @@ router.get('/review-queue', async (req, res) => {
     const backlogged = getBackloggedIds();
     const hidden = getHiddenIds();
 
+    // The CTFG tree is big enough to swamp a review session, so it sinks to the
+    // end of the queue regardless of how the rest sorts.
+    const ctfgRoots = projects.filter(p => p.name.trim().toLowerCase() === 'ctfg').map(p => p.id);
+    const ctfg = collectDescendantIds(projects, ctfgRoots);
+
     const reviewable = projects
       .filter(p => !excluded.has(p.id) && !p.is_archived && !recentlyKept.has(p.id) && !backlogged.has(p.id) && !hidden.has(p.id))
-      // Top-level (no-parent) projects first, then most recently created first within each group.
+      // CTFG last, then top-level (no-parent) projects first, then most recently created first within each group.
       .sort((a, b) => {
+        const aCtfg = ctfg.has(a.id) ? 1 : 0;
+        const bCtfg = ctfg.has(b.id) ? 1 : 0;
+        if (aCtfg !== bCtfg) return aCtfg - bCtfg;
         const aTop = a.parent_id ? 1 : 0;
         const bTop = b.parent_id ? 1 : 0;
         if (aTop !== bTop) return aTop - bTop;
@@ -123,6 +132,56 @@ router.post('/:id/move', async (req, res) => {
     }
     await moveProjectToParent(req.params.id, parentId);
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Called once when the review deck runs out, with the ids swiped "Keep" during
+// that session. Each kept project gets `@active` appended to its Todoist
+// description, leaving whatever was already written there in place. Projects
+// that already carry the tag are left untouched, so re-reviewing a project
+// week after week doesn't stack up copies.
+const ACTIVE_TAG = '@active';
+const ACTIVE_TAG_PATTERN = /(^|\s)@active(\s|$)/i;
+
+router.post('/review-complete', async (req, res) => {
+  try {
+    const { projectIds } = req.body ?? {};
+    if (!Array.isArray(projectIds)) {
+      return res.status(400).json({ error: 'projectIds must be an array' });
+    }
+    const ids = [...new Set(projectIds.filter(id => typeof id === 'string'))];
+    if (ids.length === 0) {
+      return res.json({ tagged: 0, alreadyTagged: 0, failed: [] });
+    }
+
+    const byId = new Map((await getProjects()).map(p => [p.id, p]));
+    let tagged = 0;
+    let alreadyTagged = 0;
+    const failed = [];
+
+    for (const id of ids) {
+      const project = byId.get(id);
+      if (!project) {
+        failed.push({ id, error: 'project not found' });
+        continue;
+      }
+      const current = project.description ?? '';
+      if (ACTIVE_TAG_PATTERN.test(current)) {
+        alreadyTagged++;
+        continue;
+      }
+      const next = current.trim() ? `${current.trimEnd()} ${ACTIVE_TAG}` : ACTIVE_TAG;
+      try {
+        await updateProjectDescription(id, next);
+        tagged++;
+      } catch (err) {
+        failed.push({ id, name: project.name, error: err.message });
+      }
+    }
+
+    res.json({ tagged, alreadyTagged, failed });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

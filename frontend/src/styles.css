@@ -868,6 +868,17 @@ button {
   margin-bottom: 0;
 }
 
+.tagging-note {
+  color: var(--keep);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-top: 12px;
+}
+
+.tagging-note--error {
+  color: var(--danger);
+}
+
 /* ---------- toast ---------- */
 
 .toast {

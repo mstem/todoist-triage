@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SwipeCard from './SwipeCard.jsx';
 import ArrowIcon from './ArrowIcon.jsx';
@@ -6,11 +6,20 @@ import ArrowIcon from './ArrowIcon.jsx';
 const VISIBLE_COUNT = 3;
 const BUTTON_ORDER = ['up', 'left', 'right', 'down'];
 
-export default function SwipeDeck({ items, renderCard, actions, emptyTitle, emptyDescription }) {
+export default function SwipeDeck({
+  items,
+  renderCard,
+  actions,
+  emptyTitle,
+  emptyDescription,
+  onFinish,
+  finishNote,
+}) {
   const [index, setIndex] = useState(0);
   const [toast, setToast] = useState(null);
   const [history, setHistory] = useState([]);
   const [undoing, setUndoing] = useState(false);
+  const finished = useRef(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -19,6 +28,18 @@ export default function SwipeDeck({ items, renderCard, actions, emptyTitle, empt
   }, [toast]);
 
   const remaining = items.slice(index);
+
+  // Fires once, the moment the last card leaves the deck — the deck being empty
+  // from the start doesn't count as finishing a review. Going Back after this
+  // won't re-arm it: the end-of-review work has already run.
+  useEffect(() => {
+    if (finished.current || !onFinish) return;
+    if (items.length === 0 || index < items.length) return;
+    finished.current = true;
+    onFinish(history);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, items.length]);
+
   const visible = remaining.slice(0, VISIBLE_COUNT);
   const total = items.length;
 
@@ -83,6 +104,7 @@ export default function SwipeDeck({ items, renderCard, actions, emptyTitle, empt
       <div className="swipe-empty">
         <h2>{emptyTitle}</h2>
         <p>{emptyDescription}</p>
+        {finishNote}
         <Link to="/" className="back-link swipe-empty__link">
           ← Back to Home
         </Link>

@@ -195,6 +195,10 @@ export async function updateProjectColor(id, color) {
   return syncCommand('project_update', { id, color });
 }
 
+export async function updateProjectDescription(id, description) {
+  return syncCommand('project_update', { id, description });
+}
+
 export async function moveTaskToProject(id, projectId) {
   return syncCommand('item_move', { id, project_id: projectId });
 }
