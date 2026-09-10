@@ -24,6 +24,12 @@ export const projectAction = (id, action, body) =>
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
+export const completeProjectReview = projectIds =>
+  request('/projects/review-complete', {
+    method: 'POST',
+    body: JSON.stringify({ projectIds }),
+  });
+
 export const moveProject = (id, parentId) =>
   request(`/projects/${id}/move`, { method: 'POST', body: JSON.stringify({ parentId }) });
 

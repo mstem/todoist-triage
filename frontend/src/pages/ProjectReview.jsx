@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getProjectQueue, getProjectList, projectAction, moveProject } from '../api.js';
+import {
+  getProjectQueue,
+  getProjectList,
+  projectAction,
+  moveProject,
+  completeProjectReview,
+} from '../api.js';
 import SwipeDeck from '../components/SwipeDeck.jsx';
 import ProjectCard from '../components/ProjectCard.jsx';
 
@@ -20,7 +26,7 @@ const ACTIONS = {
     run: item => projectAction(item.id, 'keep'),
   },
   up: {
-    label: 'Hide 120d',
+    label: 'Hide 30d',
     color: 'var(--hide)',
     run: item => projectAction(item.id, 'hide'),
     undo: item => projectAction(item.id, 'unhide'),
@@ -35,6 +41,8 @@ const ACTIONS = {
 
 export default function ProjectReview() {
   const [status, setStatus] = useState({ loading: true, items: null, projects: [], error: null });
+  // Result of the end-of-review pass that appends @active to kept projects.
+  const [tagging, setTagging] = useState(null);
 
   useEffect(() => {
     Promise.all([getProjectQueue(), getProjectList()])
@@ -43,6 +51,21 @@ export default function ProjectReview() {
       )
       .catch(err => setStatus({ loading: false, items: null, projects: [], error: err.message }));
   }, []);
+
+  // Runs once the deck empties. Only the projects swiped Keep in this session get
+  // the tag — a project undone with Back is off the history by then, and one
+  // decided in an earlier session was already tagged when that session ended.
+  async function handleFinish(history) {
+    const keptIds = history.filter(h => h.direction === 'right').map(h => h.item.id);
+    if (keptIds.length === 0) return;
+    setTagging({ state: 'running', count: keptIds.length });
+    try {
+      const result = await completeProjectReview(keptIds);
+      setTagging({ state: 'done', ...result });
+    } catch (err) {
+      setTagging({ state: 'error', error: err.message });
+    }
+  }
 
   return (
     <div className="page">
@@ -67,8 +90,43 @@ export default function ProjectReview() {
           actions={ACTIONS}
           emptyTitle="All caught up"
           emptyDescription="Every active project has been reviewed."
+          onFinish={handleFinish}
+          finishNote={<TaggingNote tagging={tagging} />}
         />
       )}
     </div>
+  );
+}
+
+function TaggingNote({ tagging }) {
+  if (!tagging) return null;
+
+  if (tagging.state === 'running') {
+    return (
+      <p className="tagging-note">
+        Tagging {tagging.count} kept {tagging.count === 1 ? 'project' : 'projects'} @active…
+      </p>
+    );
+  }
+
+  if (tagging.state === 'error') {
+    return <p className="tagging-note tagging-note--error">Couldn't tag @active: {tagging.error}</p>;
+  }
+
+  const { tagged, alreadyTagged, failed = [] } = tagging;
+  const parts = [];
+  if (tagged) parts.push(`@active added to ${tagged} ${tagged === 1 ? 'project' : 'projects'}`);
+  if (alreadyTagged) parts.push(`${alreadyTagged} already tagged`);
+  if (parts.length === 0) return null;
+
+  return (
+    <>
+      <p className="tagging-note">{parts.join(' · ')}</p>
+      {failed.length > 0 && (
+        <p className="tagging-note tagging-note--error">
+          Failed on {failed.map(f => f.name ?? f.id).join(', ')}
+        </p>
+      )}
+    </>
   );
 }
