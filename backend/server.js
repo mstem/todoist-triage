@@ -34,7 +34,7 @@ app.use('/api/ai', aiRouter);
 // Serve built frontend in production
 const publicDir = path.join(__dirname, '..', 'public');
 app.use(express.static(publicDir));
-app.get('*', (req, res) => {
+app.get('/{*splat}', (req, res) => {
   const index = path.join(publicDir, 'index.html');
   res.sendFile(index, err => {
     if (err) res.status(404).send('Not found');
