@@ -343,7 +343,10 @@ export default function TaskCard({ task, onComplete, onReschedule, allProjects =
             }
           />
         </div>
-        {onReschedule && (
+        {/* No +1/+2/Next week on a recurring task: it has a single date field that the
+            next occurrence is computed from, so pushing it out moves the whole series
+            rather than this one. Complete, skip or delete still work. */}
+        {onReschedule && !task.due?.is_recurring && (
           <div
             className="swipe-card__footer-row swipe-card__footer-row--dates"
             role="group"

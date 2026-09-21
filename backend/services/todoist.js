@@ -104,8 +104,13 @@ export async function getAllTasks() {
   return (data.items ?? []).filter(item => !item.checked && !item.is_deleted);
 }
 
+// Today's tasks, plus any recurring task whose day has already passed. The nightly
+// roll-forward deliberately leaves recurring tasks alone, because a task carries one
+// date that doubles as the anchor for every future occurrence, so moving it to today
+// would reschedule the whole series. Without the second clause a recurring task missed
+// on its day would never reach this deck again.
 export async function getTasksDueToday() {
-  return fetchAllPages('/tasks/filter', { query: 'date:today', limit: 200 });
+  return fetchAllPages('/tasks/filter', { query: 'date:today | (overdue & recurring)', limit: 200 });
 }
 
 // Everything that has left the today list without being done, by either route: swiped
