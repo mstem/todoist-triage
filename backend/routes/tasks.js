@@ -2,6 +2,7 @@ import express from 'express';
 import {
   getTasksDueToday,
   getProjects,
+  getCollaborators,
   applyLabelAndClearDue,
   clearDueDate,
   deleteTask,
@@ -19,17 +20,34 @@ import { recordKeep, getRecentlyKeptIds } from '../services/taskDecisions.js';
 
 const router = express.Router();
 
+// Assignees whose tasks never enter the review deck — the user triages their
+// own work, not a hire's. Matched by email, which is stable even if the
+// collaborator changes their display name.
+const EXCLUDED_ASSIGNEE_EMAILS = ['dmackisack@pm.me'];
+
 router.get('/review-queue', async (req, res) => {
   try {
-    const [tasks, projects] = await Promise.all([getTasksDueToday(), getProjects()]);
+    const [tasks, projects, collaborators] = await Promise.all([
+      getTasksDueToday(),
+      getProjects(),
+      getCollaborators(),
+    ]);
     const byId = new Map(projects.map(p => [p.id, p]));
+
+    // Resolve the excluded assignee emails to their Todoist user ids — tasks
+    // only carry a responsible_uid, so we filter on the uid, not the email.
+    const excludedUids = new Set(
+      collaborators
+        .filter(c => EXCLUDED_ASSIGNEE_EMAILS.includes((c.email ?? '').trim().toLowerCase()))
+        .map(c => c.id)
+    );
 
     // Skip tasks the user already swiped "Keep" on today, so reloading the
     // deck later the same day doesn't re-ask about them.
     const recentlyKept = getRecentlyKeptIds();
 
     const queue = tasks
-      .filter(t => !t.checked && !recentlyKept.has(t.id))
+      .filter(t => !t.checked && !recentlyKept.has(t.id) && !excludedUids.has(t.responsible_uid))
       // Backlogged tasks belong on the Backlog page, not in the deck. Backlogging
       // clears the due date, so date:today normally won't return them anyway — this
       // catches the window between the label landing and the date being cleared.
