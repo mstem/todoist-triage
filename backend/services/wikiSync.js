@@ -156,7 +156,13 @@ async function gitCommit(root, message) {
     if (!fs.existsSync(path.join(root, '.git'))) {
       await execFileP('git', ['-C', root, 'init']);
     }
-    await execFileP('git', ['-C', root, 'add', '-A']);
+    // Stage only what the generator writes. The wiki root can hold other
+    // hand-maintained files (a session's CLAUDE.md, scripts), and those must
+    // not ride along in an automated sync commit.
+    await execFileP('git', [
+      '-C', root, 'add', '-A', '--',
+      'bible.md', '.state', ':(glob)**/index.md', ':(glob)**/log.md',
+    ]);
     try {
       await execFileP('git', ['-C', root, 'diff', '--cached', '--quiet']);
       return; // nothing staged
