@@ -70,7 +70,10 @@ router.get('/review-queue', async (req, res) => {
       else tasksByProject.set(task.project_id, [task]);
     }
 
-    const queue = reviewable.map(project => {
+    // Empty projects have nothing to decide on, so they stay out of the deck.
+    // A parent whose tasks all live in sub-projects counts as empty; the
+    // sub-projects still get their own cards.
+    const queue = reviewable.filter(project => tasksByProject.has(project.id)).map(project => {
       const tasks = tasksByProject.get(project.id) ?? [];
       const sampleTasks = [...tasks]
         .sort((a, b) => a.child_order - b.child_order)
