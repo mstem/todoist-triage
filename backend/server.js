@@ -42,7 +42,8 @@ app.get('/{*splat}', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+// Loopback only: the API reads and changes Todoist with no login of its own.
+app.listen(PORT, '127.0.0.1', () => {
   // Record the live port so the Vite dev proxy targets this server rather than
   // whichever project has since claimed the port it was last configured for.
   try {
@@ -50,7 +51,7 @@ app.listen(PORT, () => {
   } catch (err) {
     console.warn(`[server] could not write .port: ${err.message}`);
   }
-  console.log(`Todoist Triage server running on http://localhost:${PORT}`);
+  console.log(`Todoist Triage server running on http://127.0.0.1:${PORT}`);
 });
 
 // Make sure the labels we apply during task triage exist (non-blocking)

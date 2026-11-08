@@ -21,10 +21,11 @@ function backendPort() {
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true,
+    // Loopback only: the /api proxy gives full Todoist access with no login.
+    host: '127.0.0.1',
     port: 5174,
     proxy: {
-      '/api': `http://localhost:${backendPort()}`,
+      '/api': `http://127.0.0.1:${backendPort()}`,
     },
   },
   build: {
