@@ -7,7 +7,7 @@ backend/logs/
 backend/data/
 backend/ai-workspace/*
 !backend/ai-workspace/.gitkeep
-public/
+/public/
 .DS_Store
 
 .port
